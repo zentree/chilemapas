@@ -1,0 +1,111 @@
+---
+title: "Usando chilemapas con tmap"
+author: "Luis A. Apiolaza"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  cache = FALSE,
+  message = FALSE,
+  collapse = TRUE, 
+  fig.width = 6, 
+  fig.height = 4)
+```
+
+# Introducción
+
+[tmap](https://cran.r-project.org/web/packages/tmap/index.html) (thematic maps)
+es un paquete para producir mapas con temas consistentes y acceder a elementos
+básicos de cartografía, como escalas, sistemas de orientación, etc. `tmap` tiene
+algunas similaridades con `ggplot2` pero ha sido diseñado para la producción
+específica de mapas.
+
+La
+[vignette](https://cran.r-project.org/web/packages/tmap/vignettes/tmap-getstarted.html)
+de `tmap` presenta una introducción al uso del paquete, mientras que el
+[capítulo 8](https://geocompr.robinlovelace.net/adv-map.html) del libro
+'Geocomputation with R' entrega algunos ejemplos más avanzados.
+
+El mínimo de paquetes para producir mapas incluye:
+
+* `chilemapas`, que entrega la geometría y nombres de comunas, provincias y
+regiones de Chile,
+* `dplyr` para manipular datos de diferentes fuentes (pr ejemplo, filtrar,
+  combinar, etc), y
+* `tmap` para crear la representación gráfica del mapa.
+
+# Población de adultos mayores en la Región de los Ríos
+
+Al igual que en la vignette de uso básico de `chilemapas`, vamos a mostrar la
+Region de los Ríos, agregar los nombres de las comunas y colorearlas de acuerdo
+al número de habitantes que son adultos mayores (65 años o más).
+
+Para entender mejor la primera parte del código, es conveniente saber que la
+variable edad del dataset censo_2017_comunas es un factor en que los adultos
+mayores ocupan del nivel 14 en adelante.
+
+## Graficar comunas
+
+```{r}
+library(chilemapas)
+library(dplyr)
+library(tmap)
+
+# Muestra por que as.integer(edad) >= 14 es lo que necesitamos
+levels(censo_2017_comunas$edad)
+
+# Para cada comuna calcula la suma de poblacion
+# mayor o igual de 65
+poblacion_adulto_mayor_comunas <- censo_2017_comunas %>%
+  filter(as.integer(edad) >= 14) %>%
+  group_by(codigo_comuna) %>%
+  summarise(pob_adulto_mayor = sum(poblacion))
+
+# Extrae del mapa de comunas todas las que pertenecen
+# a la Region 14 (de los Rios)
+comunas_los_rios <- mapa_comunas %>%
+  filter(codigo_region == 14)
+
+# Extrae los nombres de comunas de la Region 14
+nombres_comunas <- codigos_territoriales %>%
+  filter(codigo_region == 14)
+
+# Une la geometria de las comunas, con sus nombres
+# y poblacion mayor o igual de 65
+comunas_los_rios <- comunas_los_rios %>%
+  left_join(nombres_comunas) %>%
+  left_join(poblacion_adulto_mayor_comunas)
+
+tm_shape(comunas_los_rios) +
+  tm_polygons(col = "pob_adulto_mayor", title = "Población\nadulto mayor") +
+  tm_text(text = "nombre_comuna") +
+  tm_layout(title = "Población de 65 años o más en la Región de los Ríos",
+            scale = 0.75)
+```
+
+El mapa puede utilizar otro tema con poco código adicional. Por ejemplo, el
+tema *cobalt*:
+
+```{r}
+tm_shape(comunas_los_rios) +
+  tm_polygons(col = "pob_adulto_mayor", title = "Población\nadulto mayor") +
+  tm_text(text = "nombre_comuna") +
+  tm_style("cobalt") +
+  tm_layout(title = "Población de 65 años o más en la Región de los Ríos",
+            scale = 0.75)
+
+
+```
+
+O un tema más tradicional como el *classic*:
+
+```{r}
+tm_shape(comunas_los_rios) +
+  tm_polygons(col = "pob_adulto_mayor", title = "Población\nadulto mayor") +
+  tm_text(text = "nombre_comuna") +
+  tm_style("classic") +
+  tm_layout(title = "Poblacion de 65 años o más en la Región de los Ríos",
+            scale = 0.75)
+```
